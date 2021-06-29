@@ -1,0 +1,38 @@
+1.
+Action space:
+0 - Accelerate to the left
+1 - Don't accelerate
+2 - Accelerate to the right
+
+State space:
+(position, speed)
+position in [-1.2, 0.6]
+speed in [-0.07, 0.07]
+
+r(s,a) = 1 if position >= 0.5 else 0
+
+
+2.
+One reason is that it's more reasonable to assume that over the RBF feature space (where d >> 2), it's more likely
+to get a good approximation of the value function as V(s;theta). Furthermore, assuming one doesn't overfit, just like
+a regular supervised problem, it's more probable that we'll generalize well to states outside of our sample if we
+have a richer hypothesis class.
+
+3.1
+Note that upon reaching a terminal state, no more data can be collected. One option (that was implemented in the
+given code) is to collect a lot of data ahead of time, using random states and actions so that we can perform another
+LSPI iteration as if we were using the new policy pi_k.
+
+3.2
+...
+
+3.3
+In the current formulation, we have that phi(s,a) = |A|*(phi(s) feature size). Of course to perform the dot
+product w^t * phi(s,a) we need w to be of the same size.
+Note that if we have a bias entry then we get phi(s,a) = |A|*(phi(s) feature size + 1).
+
+For our specific case we have 3*(12*10 + 1 (if bias included))
+
+4.1 - The car should reach the peak in 176 steps, ((-1)*175 + 100) = -75. Setting the reward to a high positive value
+puts a lot of emphasis on reaching the goal, and setting the reward at each non-goal step to -1 incentivizes the agent
+to reach the goal quickly.

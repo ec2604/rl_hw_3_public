@@ -42,8 +42,11 @@ class GamePlayer:
                 break
         return done
 
-    def play_games(self, number_of_games, max_steps_per_game):
-        all_results = [self.play_game(max_steps_per_game) for _ in range(number_of_games)]
+    def play_games(self, number_of_games, max_steps_per_game, starting_states):
+        from tqdm import tqdm
+        all_results = []
+        for i in tqdm(range(number_of_games)):
+            all_results.append(self.play_game(max_steps_per_game, start_state=starting_states[i]))
         success_rate = np.mean(all_results)
         print(f'success rate is {success_rate}')
         return success_rate

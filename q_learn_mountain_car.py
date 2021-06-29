@@ -1,6 +1,8 @@
 import numpy as np
 import time
+import matplotlib.pyplot as plt
 
+from collections import deque
 from data_transformer import DataTransformer
 from mountain_car_with_data_collection import MountainCarWithResetEnv
 from radial_basis_function_extractor import RadialBasisFunctionExtractor
@@ -56,8 +58,14 @@ class Solver:
 
     def update_theta(self, state, action, reward, next_state, done):
         # compute the new weights and set in self.theta. also return the bellman error (for tracking).
-        assert False, "implement update_theta"
-        return 0.0
+        max_q_val_next = 0
+        if not done:
+            max_q_val_next = self.gamma*self.get_q_val(self.get_features(next_state),self.get_max_action(next_state))
+        td = reward + max_q_val_next -  self.get_q_val(self.get_features(state), action)
+        bellman_error = td.copy()
+        td *= self.get_state_action_features(state, action)
+        self.theta += self.learning_rate *td
+        return bellman_error
 
 
 def modify_reward(reward):
@@ -81,6 +89,7 @@ def run_episode(env, solver, is_train=True, epsilon=None, max_steps=200, render=
     if render:
         env.render()
         time.sleep(0.1)
+    k = 0
     while True:
         if epsilon is not None and np.random.uniform() < epsilon:
             action = np.random.choice(env.action_space.n)
@@ -92,11 +101,15 @@ def run_episode(env, solver, is_train=True, epsilon=None, max_steps=200, render=
         next_state, reward, done, _ = env.step(action)
         reward = modify_reward(reward)
         step += 1
-        episode_gain += reward
+        episode_gain += ((solver.gamma)**k) * reward
+        k +=1
         if is_train:
             deltas.append(solver.update_theta(state, action, reward, next_state, done))
         if done or step == max_steps:
-            return episode_gain, np.mean(deltas)
+            start_position = -0.5
+            start_velocity = np.random.uniform(-env.max_speed / 100., env.max_speed / 100.)
+            start_state = np.array([start_position, start_velocity])
+            return episode_gain, np.mean(deltas), done, solver.get_q_val(solver.get_features(start_state), solver.get_max_action(start_state))
         state = next_state
 
 
@@ -108,14 +121,14 @@ if __name__ == "__main__":
     np.random.seed(seed)
     env.seed(seed)
 
-    gamma = 0.99
-    learning_rate = 0.01
+    gamma = 0.999
+    learning_rate = 0.05
     epsilon_current = 0.1
     epsilon_decrease = 1.
     epsilon_min = 0.05
 
-    max_episodes = 100000
-
+    max_episodes = 10000
+    # max_episodes = 20
     solver = Solver(
         # learning parameters
         gamma=gamma, learning_rate=learning_rate,
@@ -124,23 +137,44 @@ if __name__ == "__main__":
         # env dependencies (DO NOT CHANGE):
         number_of_actions=env.action_space.n,
     )
+    epsilon_rewards = []
+    for epsilon_current in [1.0, 0.75, 0.5, 0.3, 0.01]:
+        success_rates = []
+        episode_gains = []
+        initial_values = []
+        bellman_error = deque(maxlen=100)
+        bellman_errors = []
+        for episode_index in range(1, max_episodes + 1):
+            episode_gain, mean_delta, _, approx_initial_value  = run_episode(env, solver, is_train=True, epsilon=epsilon_current)
+            initial_values.append(approx_initial_value)
+            bellman_error.append(mean_delta)
+            bellman_errors.append(np.mean(bellman_error))
+            episode_gains.append(episode_gain)
+            # reduce epsilon if required
+            epsilon_current *= epsilon_decrease
+            epsilon_current = max(epsilon_current, epsilon_min)
 
-    for episode_index in range(1, max_episodes + 1):
-        episode_gain, mean_delta = run_episode(env, solver, is_train=True, epsilon=epsilon_current)
+            print(f'after {episode_index}, reward = {episode_gain}, epsilon {epsilon_current}, average error {mean_delta}')
 
-        # reduce epsilon if required
-        epsilon_current *= epsilon_decrease
-        epsilon_current = max(epsilon_current, epsilon_min)
-
-        print(f'after {episode_index}, reward = {episode_gain}, epsilon {epsilon_current}, average error {mean_delta}')
-
-        # termination condition:
-        if episode_index % 10 == 9:
-            test_gains = [run_episode(env, solver, is_train=False, epsilon=0.)[0] for _ in range(10)]
-            mean_test_gain = np.mean(test_gains)
-            print(f'tested 10 episodes: mean gain is {mean_test_gain}')
-            if mean_test_gain >= -75.:
-                print(f'solved in {episode_index} episodes')
-                break
-
-    run_episode(env, solver, is_train=False, render=True)
+            # termination condition:
+            if episode_index % 10 == 0:
+                episodes_results = list(zip(*[run_episode(env, solver, is_train=False, epsilon=0.) for _ in range(10)]))
+                success_rates.append(np.mean(episodes_results[2]))
+                mean_test_gain = np.mean(episodes_results[0])
+                print(f'tested 10 episodes: mean gain is {mean_test_gain}')
+                if mean_test_gain >= -75.:
+                    print(f'solved in {episode_index} episodes')
+                    break
+        epsilon_rewards.append(episode_gains)
+    fig, ax = plt.subplots(2,2, figsize=(10,10))
+    ax[0][0].plot(np.arange(1, len(episode_gains)+1), episode_gains)
+    ax[0][0].set_title('Total Rewards')
+    ax[0][1].plot(np.arange(1, len(episode_gains)+1)[::10], success_rates)
+    ax[0][1].set_title('Success rates')
+    ax[1][0].plot(np.arange(1, len(episode_gains)+1), initial_values)
+    ax[1][0].set_title('Initial state value')
+    ax[1][1].plot(np.arange(1, len(episode_gains)+1), bellman_errors)
+    ax[1][1].set_title('Total bellman error (avg last 100)')
+    #plt.show()
+    plt.savefig('q_learning_graphs.png')
+    #run_episode(env, solver, is_train=False, render=True)
