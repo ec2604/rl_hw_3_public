@@ -1,38 +1,49 @@
-1.
-Action space:
-0 - Accelerate to the left
-1 - Don't accelerate
-2 - Accelerate to the right
+extras.py
+---------------
+feature_plot() - Answers question 2.1, creates the rbf feature plot. Collects the data and generates the rbf
+features just like in lspi, and then uses a meshgrid as instructed to plot it.
 
-State space:
-(position, speed)
-position in [-1.2, 0.6]
-speed in [-0.07, 0.07]
+calculate_mean_std_states() - Answers question 3.2, this is already implemented in the code, just copied off
+what was needed.
 
-r(s,a) = 1 if position >= 0.5 else 0
+lspi.py
+-------
+calc_prelim - Gets all the necessary feature extractors, environment, etc... ready for the experiments in
+3.5 and 3.6 (exp1 and exp2 respectively in the code).
+
+run_experiments - Calculates the preliminaries (calc_prelim) and lets you run the experiment in 3.5 and the experiment
+in 3.6.
+
+exp_1 - runs 3 loops of:
+       - generating random states
+       - starting a LinearPolicy
+       - calculates success rate for the random LinearPolicy that was just started.
+       - For w_updates (set to 20), or until convergence, run iterations of LSTD (in fact it's LSTDQ), which is in
+         compute_lspi_iteration().
+         - compute_lspi_iteration runs the LSTDQ alg, basically following everything to the dot (excep that we are
+           doing this for Q), and making sure to zero out the value for the ending state.
+       -  After each iteration we play the specified number of games (called in play_games which is a function of
+          in game_player), and record the success rate as per the criterion.
+      - We average things out over the the 3 loops and plot.
+
+exp_2 - We took a logspace on the given range (10,000 to 100,000) (we hoped to sample more of the smaller sample sizes
+        to find the cutoff). For each sample size we play games as in exp_1 and record the success rate. We then plot
+        the success rate as a function of the sample size.
 
 
-2.
-One reason is that it's more reasonable to assume that over the RBF feature space (where d >> 2), it's more likely
-to get a good approximation of the value function as V(s;theta). Furthermore, assuming one doesn't overfit, just like
-a regular supervised problem, it's more probable that we'll generalize well to states outside of our sample if we
-have a richer hypothesis class.
+q_larn_mountain_car.py
+----------------------
+calc_exp_1 - Runs 3.3 - 3.4, it first gathers all the preliminary variables needed (solver, env, learning rate etc...).
+Then it runs "run_exp" for 3 loops (each time the solver is restarted, this is akin to 3 different seeds since each
+initialization restarts theta with a uniform dist), with certain configurations (save graphs, etc...).
 
-3.1
-Note that upon reaching a terminal state, no more data can be collected. One option (that was implemented in the
-given code) is to collect a lot of data ahead of time, using random states and actions so that we can perform another
-LSPI iteration as if we were using the new policy pi_k.
+calc_exp_2_exploration - Runs 3.5, it essentially runs "run_exp" for the different configurations of epsilon.
+Epsilon min was lowered to 0.01 to enable the requested eps = 0.01 (otherwise it would max back to 0.05).
 
-3.2
-...
+run_exp - Most of the code was already implemented, and just tweaked to calculate the desired metrics and take into
+account tweaks to run_episode which now returns those metrics. Furthermore at the end of each experiment graphs are
+plotted and saved (according to names / toggles from outside).
 
-3.3
-In the current formulation, we have that phi(s,a) = |A|*(phi(s) feature size). Of course to perform the dot
-product w^t * phi(s,a) we need w to be of the same size.
-Note that if we have a bias entry then we get phi(s,a) = |A|*(phi(s) feature size + 1).
-
-For our specific case we have 3*(12*10 + 1 (if bias included))
-
-4.1 - The car should reach the peak in 176 steps, ((-1)*175 + 100) = -75. Setting the reward to a high positive value
-puts a lot of emphasis on reaching the goal, and setting the reward at each non-goal step to -1 incentivizes the agent
-to reach the goal quickly.
+create_action_map - Takes a solver and generates a meshgrid of possible states (position / speed), and calculates the
+max_action, in order to get an "action-map" for each state, to see whether it more or less converged to something
+sensible.

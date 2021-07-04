@@ -26,14 +26,10 @@ def compute_lspi_iteration(encoded_states, encoded_next_states, actions, rewards
             c += curr
     # c = c
     d = np.sum(phi_current*rewards[data_subset_idx].reshape(-1,1),axis=0)
-    # c_rank = np.linalg.matrix_rank(c)
-    # if c_rank < c.shape[0]:
-    # next_w = np.linalg.lstsq(c, d, rcond=None)[0]
-    # else:
     next_w = np.linalg.inv(c)@d
     return next_w.reshape(-1,1)
 
-def exp_1(feature_extractor, evaluation_number_of_games, evaluation_max_steps_per_game, encoded_states,
+def exp_1(env, data_transformer, feature_extractor, evaluation_number_of_games, evaluation_max_steps_per_game, encoded_states,
           encoded_next_states, actions, rewards, done_flags, w_updates, gamma):
     # set a new linear policy
     success_rates_seeds = []
@@ -69,7 +65,7 @@ def exp_1(feature_extractor, evaluation_number_of_games, evaluation_max_steps_pe
     plt.title('Average success rate as a function of LSPI iteration')
     plt.savefig('3_5.png')
 
-def exp_2(feature_extractor, evaluation_number_of_games, evaluation_max_steps_per_game, encoded_states,
+def exp_2(env, data_transformer,feature_extractor, evaluation_number_of_games, evaluation_max_steps_per_game, encoded_states,
           encoded_next_states, actions, rewards, done_flags, w_updates, gamma , sample_sizes):
     # set a new linear policy
     success_rates = []
@@ -105,7 +101,7 @@ def exp_2(feature_extractor, evaluation_number_of_games, evaluation_max_steps_pe
     plt.title('Success rate as a sample of sample size')
     plt.savefig('3_6.png')
 
-if __name__ == '__main__':
+def calc_prelim():
     samples_to_collect = 100000
     # samples_to_collect = 150000
     # samples_to_collect = 10000
@@ -134,12 +130,20 @@ if __name__ == '__main__':
     # encode all states:
     encoded_states = feature_extractor.encode_states_with_radial_basis_functions(states)
     encoded_next_states = feature_extractor.encode_states_with_radial_basis_functions(next_states)
-    exp_1(feature_extractor, evaluation_number_of_games, evaluation_max_steps_per_game, encoded_states,
-          encoded_next_states, actions, rewards, done_flags, w_updates, gamma)
-    # exp_2(feature_extractor, evaluation_number_of_games, evaluation_max_steps_per_game, encoded_states,
-    #        encoded_next_states, actions, rewards, done_flags, w_updates, gamma,np.logspace(start=np.log10(5000), stop=np.log10(100000), num=20, endpoint=True).astype(np.int))
+    return env, data_transformer, feature_extractor, evaluation_number_of_games, evaluation_max_steps_per_game, \
+           encoded_states, encoded_next_states, encoded_next_states, actions, rewards, done_flags, w_updates, gamma
 
-    #evaluator.play_game(evaluation_max_steps_per_game, render=True)
+def run_experiments(run_exp_1=False, run_exp_2=False):
+    env, data_transformer, feature_extractor, evaluation_number_of_games, evaluation_max_steps_per_game, encoded_states,\
+    encoded_next_states, encoded_next_states, actions, rewards, done_flags, w_updates, gamma = calc_prelim()
+    if run_exp_1:
+        exp_1(env, data_transformer, feature_extractor, evaluation_number_of_games, evaluation_max_steps_per_game, encoded_states,
+              encoded_next_states, actions, rewards, done_flags, w_updates, gamma)
+    if run_exp_2:
+        exp_2(env, data_transformer,feature_extractor, evaluation_number_of_games, evaluation_max_steps_per_game, encoded_states,
+              encoded_next_states, actions, rewards, done_flags, w_updates, gamma,
+              np.logspace(start=np.log10(5000), stop=np.log10(100000), num=20, endpoint=True).astype(np.int))
 
-
+if __name__ == '__main__':
+    run_experiments(run_exp_1=True, run_exp_2=True)
 
